@@ -1,0 +1,5 @@
+{
+  "name": "Reliability Golden Source Generator",
+  "description": "An expert tool for Reliability Engineers to generate standardized, ISO-aligned encyclopedia entries for Vector Database ingestion using Gemini 3.",
+  "requestFramePermissions": []
+}
