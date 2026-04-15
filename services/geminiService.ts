@@ -1,10 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
 import { GenerationRequest } from '../types';
 
-const MODEL_NAME = "gemini-3-flash-preview";
+// Upgraded to Pro for complex technical reasoning tasks
+const MODEL_NAME = "gemini-3-pro-preview";
 
 export const generateEncyclopediaEntry = async (request: GenerationRequest): Promise<string> => {
-  // Always create a new instance inside the call to get the most recent process.env.API_KEY
+  // Create a fresh instance for every call to ensure the latest injected API key is used
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const systemInstruction = `
@@ -14,24 +15,24 @@ export const generateEncyclopediaEntry = async (request: GenerationRequest): Pro
 
     Format Requirements (STRICT):
     1. YAML Frontmatter: Must be the very first block.
-       - id: Create a deterministic ID (e.g., term-cavitation or term-asset). Do not use random numbers.
+       - id: Create a deterministic ID (e.g., term-cavitation or term-asset).
        - term: The exact term.
-       - synonyms: A list of 3-5 alternative words users might search for.
+       - synonyms: A list of 3-5 alternative words.
        - tags: Taxonomy tags (e.g., "Reliability", "Inventory", "ISO 55000").
-       - related_terms: A list of IDs for related concepts if known, or just the terms.
+       - related_terms: A list of IDs/terms.
        - last_updated: Current date YYYY-MM-DD.
-    2. Document Title: The first line of the text body must be the term itself as a Level 1 Header (e.g., # Asset).
-    3. Section Headers: All subsequent sections must be Level 2 Headers (##).
+    2. Document Title: The first line of the text body must be the term itself as a Level 1 Header (# [Term]).
+    3. Section Headers: Level 2 Headers (##).
 
     Required Sections:
     1. # [Term Name]
-    2. ## Definition: A precise, standard definition (referencing ISO standards if applicable).
-    3. ## Detailed Explanation: Technical context, how it functions, or its role in a facility.
-    4. ## Key Data Attributes: (Crucial) List the specific data fields a reliability engineer would track for this term (e.g., "Install Date", "Serial Number", "MTBF", "P-F Interval").
-    5. ## Failure Modes & Risks: How this concept fails or the risks associated with mismanaging it.
-    6. ## Best Practices: Bulleted actionable advice.
+    2. ## Definition: Precise standard definition.
+    3. ## Detailed Explanation: Technical context and function.
+    4. ## Key Data Attributes: Specific data fields to track (e.g., MTBF, P-F Interval).
+    5. ## Failure Modes & Risks: How it fails/risks.
+    6. ## Best Practices: Bulleted advice.
 
-    Output: Produce only the Markdown. No conversational filler.
+    Output: Produce only Markdown.
   `;
 
   const prompt = `
@@ -45,15 +46,16 @@ export const generateEncyclopediaEntry = async (request: GenerationRequest): Pro
     config: {
       systemInstruction: systemInstruction,
       temperature: 0.3,
-      topK: 40,
+      topK: 64,
       topP: 0.95,
-      thinkingConfig: { thinkingBudget: 4000 } // Enable reasoning for complex technical mapping
+      // Max budget for gemini-3-pro-preview to ensure deep reliability reasoning
+      thinkingConfig: { thinkingBudget: 32768 }
     }
   });
 
   if (response.text) {
     return response.text;
   } else {
-    throw new Error("Empty response from Gemini.");
+    throw new Error("No response generated from the technical architecture engine.");
   }
 };

@@ -5,9 +5,10 @@ import { Copy, Download, Check } from 'lucide-react';
 interface OutputDisplayProps {
   content: string;
   term: string;
+  onDownload?: () => void;
 }
 
-export const OutputDisplay: React.FC<OutputDisplayProps> = ({ content, term }) => {
+export const OutputDisplay: React.FC<OutputDisplayProps> = ({ content, term, onDownload }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -30,6 +31,10 @@ export const OutputDisplay: React.FC<OutputDisplayProps> = ({ content, term }) =
     document.body.appendChild(element); 
     element.click();
     document.body.removeChild(element);
+    
+    if (onDownload) {
+      onDownload();
+    }
   };
 
   return (

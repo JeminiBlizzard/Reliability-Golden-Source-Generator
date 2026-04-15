@@ -20,4 +20,5 @@ export interface HistoryItem {
   term: string;
   timestamp: number;
   content: string;
+  downloaded?: boolean;
 }

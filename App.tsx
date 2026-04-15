@@ -3,16 +3,38 @@ import { generateEncyclopediaEntry } from './services/geminiService';
 import { GeneratorStatus, HistoryItem } from './types';
 import { Button } from './components/Button';
 import { OutputDisplay } from './components/OutputDisplay';
-import { Database, Zap, BookOpen, AlertCircle, History, Key, Info, ExternalLink, RefreshCw } from 'lucide-react';
+import { Database, Zap, BookOpen, AlertCircle, History, Key, Info, ExternalLink, RefreshCw, FileCheck, FileText } from 'lucide-react';
+
+const STORAGE_KEY = 'reliability_golden_source_history';
 
 const App: React.FC = () => {
   const [term, setTerm] = useState('');
   const [draftDefinition, setDraftDefinition] = useState('');
   const [status, setStatus] = useState<GeneratorStatus>(GeneratorStatus.IDLE);
   const [result, setResult] = useState<string>('');
+  const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [hasSelectedKey, setHasSelectedKey] = useState<boolean>(false);
+
+  // Initialize history from localStorage
+  const [history, setHistory] = useState<HistoryItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Failed to load history from storage", e);
+      return [];
+    }
+  });
+
+  // Sync history to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+    } catch (e) {
+      console.error("Failed to save history to storage", e);
+    }
+  }, [history]);
 
   const checkKeyStatus = useCallback(async () => {
     try {
@@ -33,10 +55,8 @@ const App: React.FC = () => {
     try {
       if (window.aistudio?.openSelectKey) {
         await window.aistudio.openSelectKey();
-        // Force state update to reflect selection
         setHasSelectedKey(true);
         setError(null);
-        // Re-check after a brief moment to sync with environment
         setTimeout(checkKeyStatus, 500);
       }
     } catch (e) {
@@ -51,19 +71,24 @@ const App: React.FC = () => {
     setStatus(GeneratorStatus.GENERATING);
     setError(null);
     setResult('');
+    setCurrentHistoryId(null);
 
     try {
       const generatedContent = await generateEncyclopediaEntry({ term, draftDefinition });
       setResult(generatedContent);
       setStatus(GeneratorStatus.SUCCESS);
       
+      const newId = Date.now().toString();
       const newItem: HistoryItem = {
-        id: Date.now().toString(),
+        id: newId,
         term: term,
         timestamp: Date.now(),
-        content: generatedContent
+        content: generatedContent,
+        downloaded: false
       };
-      setHistory(prev => [newItem, ...prev].slice(0, 10));
+      // Increased history limit to 50 for better record keeping
+      setHistory(prev => [newItem, ...prev].slice(0, 50));
+      setCurrentHistoryId(newId);
     } catch (err: any) {
       console.error("Generation Error:", err);
       let errorMessage = err.message || "An unexpected error occurred.";
@@ -78,8 +103,16 @@ const App: React.FC = () => {
         } catch (pErr) {}
       }
 
+      if (errorMessage.includes("Requested entity was not found.")) {
+        setHasSelectedKey(false);
+        setError("Your API key project session has expired or is invalid for this model. Please re-select a paid API key.");
+        setStatus(GeneratorStatus.ERROR);
+        handleOpenKeyDialog();
+        return;
+      }
+
       if (errorMessage.includes("429") || errorMessage.includes("RESOURCE_EXHAUSTED") || errorMessage.toLowerCase().includes("quota")) {
-        errorMessage = "Quota limit reached. While Gemini 3 Flash is more accessible, you may still need a personal API key from a project with billing enabled to handle continuous high-volume technical architecting.";
+        errorMessage = "Quota limit reached. High-precision reliability architecture requires a personal API key from a project with billing enabled.";
       }
       
       setError(errorMessage);
@@ -87,9 +120,17 @@ const App: React.FC = () => {
     }
   };
 
+  const handleMarkDownloaded = useCallback(() => {
+    if (!currentHistoryId) return;
+    setHistory(prev => prev.map(item => 
+      item.id === currentHistoryId ? { ...item, downloaded: true } : item
+    ));
+  }, [currentHistoryId]);
+
   const loadFromHistory = (item: HistoryItem) => {
     setTerm(item.term);
     setResult(item.content);
+    setCurrentHistoryId(item.id);
     setStatus(GeneratorStatus.SUCCESS);
     setError(null);
   };
@@ -99,6 +140,7 @@ const App: React.FC = () => {
     setDraftDefinition('');
     setStatus(GeneratorStatus.IDLE);
     setResult('');
+    setCurrentHistoryId(null);
     setError(null);
   }, []);
 
@@ -112,7 +154,7 @@ const App: React.FC = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold text-white tracking-tight">Golden Source</h1>
-              <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest leading-none mt-1">Data Architect • Powered by Gemini 3 Flash</p>
+              <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest leading-none mt-1">Data Architect • Powered by Gemini 3 Pro</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -137,9 +179,9 @@ const App: React.FC = () => {
                 <Info className="w-6 h-6 text-blue-400" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">Optimize Your Experience</h3>
+                <h3 className="text-lg font-semibold text-white">Advanced Reasoning Active</h3>
                 <p className="text-slate-400 text-sm mt-1 max-w-xl">
-                  We've switched to <strong>Gemini 3 Flash</strong> for faster processing. Connect your personal API key to ensure you have the best availability for complex data architecture tasks.
+                  We've enabled <strong>Gemini 3 Pro</strong> with a full thinking budget for complex ISO data mapping. Please ensure your personal API key is connected.
                 </p>
               </div>
             </div>
@@ -167,7 +209,7 @@ const App: React.FC = () => {
                   <Zap className="w-5 h-5 text-amber-400" />
                   <h2 className="text-lg font-semibold text-white">Technical Definition</h2>
                 </div>
-                <div className="text-[9px] font-mono text-slate-500 bg-slate-800 px-2 py-0.5 rounded tracking-tighter">FLASH V3</div>
+                <div className="text-[9px] font-mono text-slate-500 bg-slate-800 px-2 py-0.5 rounded tracking-tighter">PRO V3</div>
               </div>
               
               <form onSubmit={handleGenerate} className="flex flex-col gap-5">
@@ -231,10 +273,19 @@ const App: React.FC = () => {
                     <li key={item.id}>
                       <button
                         onClick={() => loadFromHistory(item)}
-                        className="w-full text-left px-3 py-2 rounded hover:bg-slate-800 transition-all flex justify-between items-center group"
+                        className={`w-full text-left px-3 py-2 rounded transition-all flex justify-between items-center group ${currentHistoryId === item.id ? 'bg-slate-800 ring-1 ring-slate-700' : 'hover:bg-slate-800/50'}`}
                       >
-                        <span className="text-sm text-slate-400 group-hover:text-white truncate">{item.term}</span>
-                        <span className="text-[10px] text-slate-600 font-mono">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          {item.downloaded ? (
+                            <FileCheck size={14} className="text-green-500 flex-shrink-0" />
+                          ) : (
+                            <FileText size={14} className="text-slate-600 flex-shrink-0" />
+                          )}
+                          <span className={`text-sm truncate ${currentHistoryId === item.id ? 'text-white font-medium' : 'text-slate-400 group-hover:text-slate-200'}`}>
+                            {item.term}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-600 font-mono flex-shrink-0 ml-2">
                            {new Date(item.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                         </span>
                       </button>
@@ -282,16 +333,20 @@ const App: React.FC = () => {
             )}
 
             {result ? (
-              <OutputDisplay content={result} term={term} />
+              <OutputDisplay 
+                content={result} 
+                term={term} 
+                onDownload={handleMarkDownloaded}
+              />
             ) : status === GeneratorStatus.GENERATING ? (
               <div className="flex-1 bg-slate-900 rounded-xl border border-slate-800 flex flex-col items-center justify-center p-12 text-center animate-in fade-in zoom-in-95 duration-300">
                 <div className="relative mb-8">
                   <div className="w-24 h-24 border-4 border-blue-500/10 border-t-blue-500 rounded-full animate-spin"></div>
                   <Database className="w-10 h-10 text-blue-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-3 tracking-tight">Standardizing Source Data...</h3>
+                <h3 className="text-xl font-bold text-white mb-3 tracking-tight">Synthesizing Technical Data...</h3>
                 <p className="text-slate-400 max-w-sm text-sm font-medium">
-                  Mapping attributes to ISO standards and structuring for vector ingestion.
+                  The Pro engine is currently cross-referencing ISO standards and building your Golden Source entry.
                 </p>
               </div>
             ) : (
@@ -301,12 +356,12 @@ const App: React.FC = () => {
                 </div>
                 <h3 className="text-xl font-medium text-slate-300 mb-3 tracking-tight">Golden Source Workbench</h3>
                 <p className="max-w-md text-sm leading-relaxed mb-10">
-                  Connect an API key and define a term to generate standardized maintenance data optimized for RAG systems.
+                  Connect an API key and define a term to generate standardized maintenance data optimized for RAG systems using the Pro Reasoning engine.
                 </p>
                 <div className="flex flex-wrap justify-center gap-3 text-[10px] font-mono uppercase tracking-widest text-slate-600">
                   <span className="bg-slate-800/50 border border-slate-700/50 px-3 py-1 rounded-full">ISO 14224</span>
                   <span className="bg-slate-800/50 border border-slate-700/50 px-3 py-1 rounded-full">RAG-READY</span>
-                  <span className="bg-slate-800/50 border border-slate-700/50 px-3 py-1 rounded-full">GEMINI 3 FLASH</span>
+                  <span className="bg-slate-800/50 border border-slate-700/50 px-3 py-1 rounded-full">GEMINI 3 PRO</span>
                 </div>
               </div>
             )}
