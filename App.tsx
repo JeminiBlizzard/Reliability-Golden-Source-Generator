@@ -15,6 +15,7 @@ const App: React.FC = () => {
   const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hasSelectedKey, setHasSelectedKey] = useState<boolean>(false);
+  const [isAiStudio, setIsAiStudio] = useState<boolean>(true);
 
   // Initialize history from localStorage
   const [history, setHistory] = useState<HistoryItem[]>(() => {
@@ -37,9 +38,18 @@ const App: React.FC = () => {
   }, [history]);
 
   const checkKeyStatus = useCallback(async () => {
+    console.log("Checking API key status...");
+    if (!window.aistudio) {
+      console.warn("window.aistudio NOT found - likely running outside of AI Studio preview");
+      setIsAiStudio(false);
+      return;
+    }
+    
+    setIsAiStudio(true);
     try {
-      if (window.aistudio?.hasSelectedApiKey) {
+      if (window.aistudio.hasSelectedApiKey) {
         const selected = await window.aistudio.hasSelectedApiKey();
+        console.log("API key selected status:", selected);
         setHasSelectedKey(selected);
       }
     } catch (e) {
@@ -52,15 +62,22 @@ const App: React.FC = () => {
   }, [checkKeyStatus]);
 
   const handleOpenKeyDialog = async () => {
+    console.log("Attempting to open key dialog...");
     try {
       if (window.aistudio?.openSelectKey) {
+        console.log("window.aistudio.openSelectKey found, calling...");
         await window.aistudio.openSelectKey();
+        // Skill requirement: Assume success and proceed
         setHasSelectedKey(true);
         setError(null);
         setTimeout(checkKeyStatus, 500);
+      } else {
+        console.warn("window.aistudio.openSelectKey NOT found");
+        setError("The API key selection dialog is not available in this environment. Please ensure you are using the AI Studio preview frame.");
       }
     } catch (e) {
       console.error("Failed to open key dialog", e);
+      setError("An error occurred while trying to open the API key selection dialog.");
     }
   };
 
@@ -172,7 +189,22 @@ const App: React.FC = () => {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {!hasSelectedKey && (
+        {!isAiStudio && (
+          <div className="mb-8 bg-amber-900/10 border border-amber-800/30 rounded-xl p-6 flex items-start gap-4 shadow-2xl">
+            <div className="p-3 bg-amber-500/20 rounded-full">
+              <AlertCircle className="w-6 h-6 text-amber-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Platform API Not Detected</h3>
+              <p className="text-slate-400 text-sm mt-1">
+                The AI Studio platform features (like personal API key selection) are not available in this view. 
+                Please use the <strong>Preview</strong> tab within AI Studio for full functionality.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {!hasSelectedKey && isAiStudio && (
           <div className="mb-8 bg-blue-900/10 border border-blue-800/30 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
             <div className="flex items-start gap-4">
               <div className="p-3 bg-blue-500/20 rounded-full">

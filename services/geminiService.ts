@@ -6,7 +6,12 @@ const MODEL_NAME = "gemini-3-pro-preview";
 
 export const generateEncyclopediaEntry = async (request: GenerationRequest): Promise<string> => {
   // Create a fresh instance for every call to ensure the latest injected API key is used
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // We check multiple possible locations for the injected API key
+  const apiKey = (typeof process !== 'undefined' && process.env?.API_KEY) 
+    ? process.env.API_KEY 
+    : (globalThis as any).process?.env?.API_KEY;
+    
+  const ai = new GoogleGenAI({ apiKey: apiKey || "" });
 
   const systemInstruction = `
     Role: You are an Expert Maintenance & Reliability Engineer and Technical Data Architect.

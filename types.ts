@@ -22,3 +22,12 @@ export interface HistoryItem {
   content: string;
   downloaded?: boolean;
 }
+
+declare global {
+  interface Window {
+    aistudio?: {
+      hasSelectedApiKey: () => Promise<boolean>;
+      openSelectKey: () => Promise<void>;
+    };
+  }
+}
